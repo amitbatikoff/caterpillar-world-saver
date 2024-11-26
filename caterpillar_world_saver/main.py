@@ -7,21 +7,29 @@ import asyncio
 import pygame
 import platform
 import sys
+import os
+
+# Set SDL environment variables for web
+os.environ['SDL_VIDEODRIVER'] = 'webgl'
+
+# Initialize Pygame
+pygame.init()
+pygame.mixer.init()
+
+# Import game after pygame init
+from game import Game
 
 async def main():
     """Start the game with async support for web."""
-    # Initialize Pygame
-    pygame.init()
-    
-    # Import game after pygame init
-    from .game import Game
-    
     # Create game instance
     game = Game()
     
     # Main game loop with async support
     running = True
     while running:
+        # Process events with asyncio
+        await asyncio.sleep(0)  # Let the browser breathe
+        
         # Handle events
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -38,8 +46,8 @@ async def main():
         game.draw()
         pygame.display.flip()
         
-        # Control frame rate and allow browser to update
-        await asyncio.sleep(0)
+        # Control frame rate
+        game.clock.tick(60)
 
     # Clean up
     pygame.quit()

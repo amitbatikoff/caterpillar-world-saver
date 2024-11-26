@@ -372,15 +372,23 @@ class Game:
         # Initialize display with SCALED flag for web
         if self.is_web:
             self.screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT), 
-                                                pygame.SCALED)
+                                                pygame.SCALED | pygame.RESIZABLE)
         else:
             self.screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
             
         pygame.display.set_caption("Caterpillar World Saver")
         self.clock = pygame.time.Clock()
         self.reset_game()
-        self.create_victory_sound()
-        self.create_game_over_sound()
+        
+        try:
+            self.create_victory_sound()
+            self.create_game_over_sound()
+        except Exception as e:
+            print(f"Warning: Could not create sounds - {e}")
+            # Create dummy sound objects
+            self.victory_sound = pygame.mixer.Sound(buffer=b'')
+            self.game_over_sound = pygame.mixer.Sound(buffer=b'')
+            
         self.paused = False
         self.game_over = False
         self.last_damage_time = 0

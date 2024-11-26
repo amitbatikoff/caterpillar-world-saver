@@ -1,6 +1,7 @@
 import asyncio
 import pygame
 import numpy as np
+from game import Game
 
 # Initialize Pygame
 pygame.init()
@@ -11,9 +12,6 @@ WINDOW_HEIGHT = 600
 screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
 pygame.display.set_caption("Caterpillar World Saver")
 
-# Import the game code
-from game import Game
-
 async def main():
     """Main game loop with async support for web."""
     game = Game()
@@ -21,10 +19,7 @@ async def main():
     running = True
     while running:
         # Handle events
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-            game.handle_event(event)
+        running = game.handle_events()
         
         # Update game state
         game.update()

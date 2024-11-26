@@ -366,33 +366,26 @@ class Particle:
 
 class Game:
     def __init__(self):
-        # Check if running in browser
-        self.is_web = hasattr(sys, 'platform') and sys.platform.startswith('emscripten')
-        
-        # Initialize display with SCALED flag for web
-        if self.is_web:
-            self.screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT), 
-                                                pygame.SCALED | pygame.RESIZABLE)
-        else:
-            self.screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
-            
-        pygame.display.set_caption("Caterpillar World Saver")
+        # Initialize display
+        self.screen = pygame.display.get_surface()
         self.clock = pygame.time.Clock()
-        self.reset_game()
         
-        try:
-            self.create_victory_sound()
-            self.create_game_over_sound()
-        except Exception as e:
-            print(f"Warning: Could not create sounds - {e}")
-            # Create dummy sound objects
-            self.victory_sound = pygame.mixer.Sound(buffer=b'')
-            self.game_over_sound = pygame.mixer.Sound(buffer=b'')
-            
+        # Game state
+        self.reset_game()
         self.paused = False
         self.game_over = False
         self.last_damage_time = 0
-        self.damage_cooldown = 500  # 500ms cooldown between damage
+        self.damage_cooldown = 500
+        
+        # Initialize sound if available
+        try:
+            pygame.mixer.init()
+            self.create_victory_sound()
+            self.create_game_over_sound()
+        except:
+            print("Warning: Sound initialization failed")
+            self.victory_sound = None
+            self.game_over_sound = None
 
     def reset_game(self):
         self.stage = 1
@@ -938,5 +931,6 @@ class Game:
         sys.exit()
 
 if __name__ == "__main__":
+    pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
     game = Game()
     game.run()

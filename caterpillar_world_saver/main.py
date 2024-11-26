@@ -5,54 +5,44 @@ Web-compatible version using Pygbag for browser deployment.
 
 import asyncio
 import pygame
-import platform
 import sys
-import os
-
-# Set SDL environment variables for web
-os.environ['SDL_VIDEODRIVER'] = 'webgl'
-
-# Initialize Pygame
-pygame.init()
-pygame.mixer.init()
-
-# Import game after pygame init
-from game import Game
 
 async def main():
-    """Start the game with async support for web."""
+    pygame.init()
+    pygame.display.init()
+    
+    # Create the window
+    screen = pygame.display.set_mode((800, 600))
+    pygame.display.set_caption("Caterpillar World Saver")
+    
     # Create game instance
+    from game import Game
     game = Game()
     
-    # Main game loop with async support
+    # Main game loop
     running = True
     while running:
         # Process events with asyncio
-        await asyncio.sleep(0)  # Let the browser breathe
+        await asyncio.sleep(0)
         
         # Handle events
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
-            # Handle game events
             game.handle_event(event)
         
-        # Update game state
-        if not game.paused and not game.game_over:
-            if not game.update():
-                running = False
+        # Clear screen
+        screen.fill((255, 255, 255))
         
-        # Draw everything
+        # Update and draw
+        if not game.paused and not game.game_over:
+            game.update()
         game.draw()
+        
+        # Update display
         pygame.display.flip()
         
-        # Control frame rate
-        game.clock.tick(60)
+        # Cap at 60 FPS
+        await asyncio.sleep(1/60)
 
-    # Clean up
-    pygame.quit()
-    if platform.system() != "Emscripten":
-        sys.exit()
-
-if __name__ == "__main__":
-    asyncio.run(main())
+asyncio.run(main())

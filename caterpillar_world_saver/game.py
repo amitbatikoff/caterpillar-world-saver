@@ -366,7 +366,16 @@ class Particle:
 
 class Game:
     def __init__(self):
-        self.screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
+        # Check if running in browser
+        self.is_web = hasattr(sys, 'platform') and sys.platform.startswith('emscripten')
+        
+        # Initialize display with SCALED flag for web
+        if self.is_web:
+            self.screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT), 
+                                                pygame.SCALED)
+        else:
+            self.screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
+            
         pygame.display.set_caption("Caterpillar World Saver")
         self.clock = pygame.time.Clock()
         self.reset_game()

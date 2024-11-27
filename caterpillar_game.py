@@ -248,7 +248,7 @@ class Enemy:
         # Check if we're stuck by comparing current position to last position
         if self.rect.x == self.last_pos.x and self.rect.y == self.last_pos.y:
             self.stuck_time += 1
-            if self.stuck_time > 30:  # Stuck for half a second (30 frames)
+            if self.stuck_time > 5:  # Stuck for half a second (30 frames)
                 # Change direction and target
                 self.current_direction = (self.current_direction + 1) % 4
                 self.target_tail = not self.target_tail

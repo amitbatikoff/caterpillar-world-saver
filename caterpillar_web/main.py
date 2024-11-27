@@ -708,8 +708,8 @@ class Game:
         self.generate_walls()
         self.spawn_enemies()
         self.player.energy = self.player.max_energy
-        
         self.player.speed = self.player.base_speed + (self.stage * 0.2)
+        self.victory_sound_played = False  # Reset the victory sound flag
 
     def create_celebration_particles(self):
         for _ in range(100):
@@ -1004,15 +1004,6 @@ async def main():
                 
                 game.handle_collisions()
                 
-                if game.celebrating:
-                    game.celebration_timer -= 1
-                    if game.celebration_timer <= 0:
-                        game.celebrating = False
-                        if game.victory_sound and not game.victory_sound_played:
-                            game.victory_sound.play()
-                            game.victory_sound_played = True
-                    game.reset_stage()
-
         game.screen.blit(game.background, (0, 0))
         
         for wall in game.walls:

@@ -387,7 +387,9 @@ class Game:
         
         self.touch_start = None
         self.touch_current = None
-        self.min_swipe_distance = 30
+        self.joystick_center = (80, SCREEN_HEIGHT - 80)  # Position of virtual joystick
+        self.joystick_radius = 40  # Size of virtual joystick
+        self.touch_threshold = 10  # Minimum distance for touch movement
         
         self.sprite_group = pygame.sprite.Group()
         self.enemy_group = pygame.sprite.Group()
@@ -537,9 +539,9 @@ class Game:
             dx = self.touch_current[0] - self.touch_start[0]
             dy = self.touch_current[1] - self.touch_start[1]
             
-            if abs(dx) > self.min_swipe_distance:
+            if abs(dx) > self.touch_threshold:
                 touch_dir_x = 1 if dx > 0 else -1
-            if abs(dy) > self.min_swipe_distance:
+            if abs(dy) > self.touch_threshold:
                 touch_dir_y = 1 if dy > 0 else -1
         
         return touch_dir_x, touch_dir_y
@@ -547,7 +549,6 @@ class Game:
     def handle_event(self, event):
         if event.type == pygame.QUIT:
             return False
-            
         elif event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
                 self.paused = not self.paused
@@ -575,20 +576,34 @@ class Game:
                 self.touch_current = event.pos
                 
         elif event.type == pygame.FINGERDOWN:
-            x = int(event.x * self.screen_width)
-            y = int(event.y * self.screen_height)
+            # Convert touch coordinates to screen coordinates
+            x = event.x * SCREEN_WIDTH
+            y = event.y * SCREEN_HEIGHT
             self.touch_start = (x, y)
+            self.touch_current = (x, y)
             
+            if self.game_over:
+                # Check if touch is far from joystick for game restart
+                dist_to_joystick = math.sqrt((x - self.joystick_center[0])**2 + 
+                                           (y - self.joystick_center[1])**2)
+                if dist_to_joystick > self.joystick_radius * 3:
+                    self.reset_game()
+                
+        elif event.type == pygame.FINGERMOTION:
+            if self.touch_start is not None:
+                # Convert touch coordinates to screen coordinates
+                x = event.x * SCREEN_WIDTH
+                y = event.y * SCREEN_HEIGHT
+                self.touch_current = (x, y)
+                
         elif event.type == pygame.FINGERUP:
             self.touch_start = None
             self.touch_current = None
+            # Reset movement when touch is released
+            if hasattr(self, 'player'):
+                self.player.dx = 0
+                self.player.dy = 0
             
-        elif event.type == pygame.FINGERMOTION:
-            if self.touch_start:
-                x = int(event.x * self.screen_width)
-                y = int(event.y * self.screen_height)
-                self.touch_current = (x, y)
-        
         return True
 
     def reset_game(self):
@@ -804,15 +819,29 @@ class Game:
         if not self.celebrating:
             for enemy in self.enemies:
                 if not enemy.converted:
-                    head_rect = self.player.segments[0]
-                    enemy_rect = pygame.Rect(enemy.rect.x, enemy.rect.y, enemy.width, enemy.height)
+                    # Create collision rectangles with reduced size for more precise detection
+                    head_rect = pygame.Rect(
+                        self.player.segments[0].x + 2,
+                        self.player.segments[0].y + 2,
+                        self.player.segments[0].width - 4,
+                        self.player.segments[0].height - 4
+                    )
+                    # Use full enemy rectangle for collision to match visuals
+                    enemy_rect = enemy.rect
                     
                     tail_hit = False
                     for segment in self.player.segments[1:]:
-                        segment_rect = pygame.Rect(segment.x, segment.y, segment.width, segment.height)
+                        segment_rect = pygame.Rect(
+                            segment.x + 2,
+                            segment.y + 2,
+                            segment.width - 4,
+                            segment.height - 4
+                        )
+                        
                         if segment_rect.colliderect(enemy_rect):
                             tail_hit = True
                             if current_time - self.last_damage_time >= self.damage_cooldown:
+                                self.play_sound('collision')
                                 if self.player.lose_energy(10):
                                     if self.player.lives <= 0:
                                         self.game_over = True
@@ -821,7 +850,6 @@ class Game:
                                         self.player.reset_position()
                                         self.reset_positions()
                                 self.last_damage_time = current_time
-                                self.play_sound('collision')
                             break
 
                     if not tail_hit and head_rect.colliderect(enemy_rect):
@@ -837,10 +865,10 @@ class Game:
                         enemy.rect.x += math.cos(angle) * magnitude
                         enemy.rect.y += math.sin(angle) * magnitude
 
+            # Check if all enemies are converted
             if all(enemy.converted for enemy in self.enemies):
                 self.score += self.stage_requirements['bonus_points'](self.stage)
                 self.high_score = max(self.score, self.high_score)
-                self.stage += 1
                 self.celebrating = True
                 self.celebration_timer = 60
                 self.create_celebration_particles()
@@ -871,32 +899,118 @@ class Game:
                 self.reset_game()
                 self.game_over = False
 
+    def draw_joystick(self):
+        if self.touch_start is not None:
+            # Draw joystick base
+            pygame.draw.circle(self.screen, (100, 100, 100), self.joystick_center, self.joystick_radius)
+            
+            # Draw joystick handle
+            handle_pos = self.joystick_center
+            if self.touch_current is not None:
+                dx = self.touch_current[0] - self.joystick_center[0]
+                dy = self.touch_current[1] - self.joystick_center[1]
+                distance = math.sqrt(dx**2 + dy**2)
+                
+                if distance > 0:
+                    # Limit handle position to joystick radius
+                    scale = min(distance, self.joystick_radius) / distance
+                    handle_x = self.joystick_center[0] + dx * scale
+                    handle_y = self.joystick_center[1] + dy * scale
+                    handle_pos = (handle_x, handle_y)
+            
+            pygame.draw.circle(self.screen, (150, 150, 150), handle_pos, self.joystick_radius//2)
+
 async def main():
     game = Game()
     running = True
 
     while running:
         for event in pygame.event.get():
-            if not game.handle_event(event):
+            if event.type == pygame.QUIT:
                 running = False
+            running = game.handle_event(event)
 
-        if not game.paused and not game.game_over:
-            keys = pygame.key.get_pressed()
-            touch_dir_x, touch_dir_y = game.handle_input()
-            game.player.move(keys, game.walls)
-            
-            for enemy in game.enemies:
-                enemy.move(game.player.segments, game.walls)
-            
-            game.handle_collisions()
-            
+        if not game.game_over:
             if game.celebrating:
-                game.celebration_timer -= 1
-                if game.celebration_timer <= 0:
+                game.particle_group.update()
+                if game.celebration_timer > 0:
+                    game.celebration_timer -= 1
+                else:
                     game.celebrating = False
                     if game.victory_sound and not game.victory_sound_played:
                         game.victory_sound.play()
                         game.victory_sound_played = True
+                    game.stage += 1  # Increment stage before resetting
+                    game.touch_start = None  # Reset touch state
+                    game.touch_current = None  # Reset touch state
+                    game.reset_stage()  # Reset game state for new stage
+                    continue  # Skip the rest of this frame
+            
+            # Handle keyboard input regardless of celebration state
+            keys = pygame.key.get_pressed()
+            dx = 0
+            dy = 0
+            if keys[pygame.K_LEFT] or keys[pygame.K_a]:
+                dx = -1
+            if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
+                dx = 1
+            if keys[pygame.K_UP] or keys[pygame.K_w]:
+                dy = -1
+            if keys[pygame.K_DOWN] or keys[pygame.K_s]:
+                dy = 1
+            
+            # Handle touch/joystick input
+            if game.touch_current is not None:
+                delta_x = game.touch_current[0] - game.joystick_center[0]
+                delta_y = game.touch_current[1] - game.joystick_center[1]
+                distance = math.sqrt(delta_x**2 + delta_y**2)
+                
+                if distance > game.touch_threshold:
+                    dx = delta_x / distance
+                    dy = delta_y / distance
+            
+            if not game.celebrating:  # Only update player and enemies when not celebrating
+                # Update player movement
+                if dx != 0 or dy != 0:
+                    # Normalize diagonal movement
+                    length = math.sqrt(dx*dx + dy*dy)
+                    if length != 0:
+                        dx = dx/length
+                        dy = dy/length
+                    game.player.dx = dx * game.player.speed
+                    game.player.dy = dy * game.player.speed
+                else:
+                    game.player.dx = 0
+                    game.player.dy = 0
+                
+                game.player.segments[0].x += game.player.dx
+                game.player.segments[0].y += game.player.dy
+                
+                for wall in game.walls:
+                    if wall.collides_with(game.player.segments[0]):
+                        game.player.segments[0].x -= game.player.dx
+                        game.player.segments[0].y -= game.player.dy
+                        break
+                
+                if (game.player.segments[0].left < 0 or game.player.segments[0].right > SCREEN_WIDTH or 
+                    game.player.segments[0].top < 0 or game.player.segments[0].bottom > SCREEN_HEIGHT):
+                    game.player.segments[0].x -= game.player.dx
+                    game.player.segments[0].y -= game.player.dy
+                
+                game.player.update_segments(game.player.segments[0].copy())
+                
+                for enemy in game.enemies:
+                    enemy.move(game.player.segments, game.walls)
+                
+                game.handle_collisions()
+                
+                if game.celebrating:
+                    game.celebration_timer -= 1
+                    if game.celebration_timer <= 0:
+                        game.celebrating = False
+                        if game.victory_sound and not game.victory_sound_played:
+                            game.victory_sound.play()
+                            game.victory_sound_played = True
                     game.reset_stage()
 
         game.screen.blit(game.background, (0, 0))
@@ -974,6 +1088,8 @@ async def main():
             restart_text = font.render("Restart", True, BLACK)
             restart_text_rect = restart_text.get_rect(center=restart_rect.center)
             game.screen.blit(restart_text, restart_text_rect)
+
+        game.draw_joystick()
 
         pygame.display.flip()
         game.clock.tick(60)

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Caterpillar World Saver</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: black;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: Arial, sans-serif;
+        }
+        #status {
+            color: white;
+            position: absolute;
+            top: 50%;
+            width: 100%;
+            text-align: center;
+            transform: translateY(-50%);
+        }
+        #game-container {
+            position: relative;
+            width: 800px;
+            height: 600px;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            image-rendering: pixelated;
+        }
+        #controls {
+            color: white;
+            text-align: center;
+            margin-top: 10px;
+            position: absolute;
+            bottom: -40px;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="status">Loading game...</div>
+        <canvas id="canvas"></canvas>
+        <div id="controls">Use arrow keys to control the caterpillar</div>
+    </div>
+    <script>
+        console.log('Game starting...');
+        const status = document.getElementById('status');
+        
+        // Log all errors
+        window.addEventListener('error', function(e) {
+            console.error('Error:', e.error);
+            status.textContent = 'Error: ' + e.error;
+        });
+        
+        // Log when Python starts
+        window.addEventListener('pythonstart', function() {
+            console.log('Python starting...');
+            status.textContent = 'Game loading...';
+        });
+        
+        // Handle keyboard events
+        document.addEventListener('keydown', function(e) {
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                e.preventDefault();  // Prevent page scrolling
+            }
+        });
+    </script>
+</body>
+</html>
